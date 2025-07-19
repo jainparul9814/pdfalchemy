@@ -86,11 +86,34 @@ for i, png_bytes in enumerate(png_result.png_images):
 # Convert PDF to PNG images
 pdfalchemy to-png document.pdf --output ./images/ --dpi 300
 
-# Convert specific pages
+# Convert specific pages (range, list, or single page)
 pdfalchemy to-png document.pdf --pages 1-5 --dpi 200
+pdfalchemy to-png document.pdf --pages 1,3,5 --dpi 200
+pdfalchemy to-png document.pdf --pages 3 --dpi 200
 
 # Convert to base64 for web applications
 pdfalchemy to-base64 document.pdf --dpi 200 --output images.json
+
+# Extract individual images from PDF pages
+pdfalchemy extract-images document.pdf --output ./extracted/ --min-size 100x100
+
+# Extract images with custom filters
+pdfalchemy extract-images document.pdf --min-width 50 --max-width 800 --aspect-ratio 0.5-2.0
+
+# Extract images with advanced options
+pdfalchemy extract-images document.pdf \
+  --output ./extracted/ \
+  --dpi 300 \
+  --pages 1-5 \
+  --min-size 100x100 \
+  --max-size 800x600 \
+  --aspect-ratio 0.5-2.0 \
+  --threshold 0.15 \
+  --format json \
+  --summary
+
+# Get help for any command
+pdfalchemy extract-images --help
 ```
 
 ## Advanced Usage
@@ -170,31 +193,151 @@ for i, base64_str in enumerate(base64_images):
     print(html_img_tag)
 ```
 
+## Command Line Interface
+
+PDFAlchemy provides a powerful command-line interface for batch processing and automation.
+
+### Available Commands
+
+#### `to-png` - Convert PDF to PNG Images
+```bash
+pdfalchemy to-png <pdf_file> [options]
+```
+
+**Options:**
+- `--output, -o`: Output directory for PNG files
+- `--dpi`: DPI resolution (default: 200, range: 72-1200)
+- `--pages`: Page range (e.g., '1-5', '1,3,5', or '3')
+
+**Examples:**
+```bash
+# Convert all pages
+pdfalchemy to-png document.pdf --output ./images/
+
+# Convert specific pages with high resolution
+pdfalchemy to-png document.pdf --dpi 300 --pages 1-5 --output ./high_res/
+
+# Convert single page
+pdfalchemy to-png document.pdf --pages 3 --output ./single_page/
+```
+
+#### `to-base64` - Convert PDF to Base64 Encoded PNG
+```bash
+pdfalchemy to-base64 <pdf_file> [options]
+```
+
+**Options:**
+- `--output, -o`: Output file for base64 data (JSON format)
+- `--dpi`: DPI resolution (default: 200)
+- `--pages`: Page range (e.g., '1-5', '1,3,5', or '3')
+
+**Examples:**
+```bash
+# Convert to base64 for web applications
+pdfalchemy to-base64 document.pdf --dpi 200 --output images.json
+
+# Convert specific pages
+pdfalchemy to-base64 document.pdf --pages 1-3 --output selected_pages.json
+```
+
+#### `extract-images` - Extract Individual Images from PDF
+```bash
+pdfalchemy extract-images <pdf_file> [options]
+```
+
+**Basic Options:**
+- `--output, -o`: Output directory for extracted images
+- `--dpi`: DPI resolution for conversion (default: 200)
+- `--pages`: Page range (e.g., '1-5', '1,3,5', or '3')
+
+**Size Filtering:**
+- `--min-size`: Minimum size in pixels (e.g., '100x100')
+- `--max-size`: Maximum size in pixels (e.g., '800x600')
+- `--min-width`: Minimum width in pixels
+- `--min-height`: Minimum height in pixels
+- `--max-width`: Maximum width in pixels
+- `--max-height`: Maximum height in pixels
+
+**Advanced Filtering:**
+- `--aspect-ratio`: Aspect ratio range (e.g., '0.5-2.0')
+- `--threshold`: Flood fill threshold (0.0-1.0, default: 0.1)
+- `--no-noise-reduction`: Disable noise reduction
+- `--no-separate-regions`: Disable connected region separation
+- `--sort-order`: Sort order for extracted images ('top-bottom', 'left-right', 'reading-order', default: 'top-bottom')
+
+**Output Options:**
+- `--format`: Output format ('png' or 'json', default: 'png')
+- `--summary`: Show detailed extraction summary
+
+**Examples:**
+```bash
+# Basic image extraction
+pdfalchemy extract-images document.pdf --output ./extracted/ --min-size 100x100
+
+# Advanced filtering with custom sort order
+pdfalchemy extract-images document.pdf \
+  --output ./filtered/ \
+  --min-width 50 \
+  --max-width 800 \
+  --aspect-ratio 0.5-2.0 \
+  --threshold 0.15 \
+  --sort-order reading-order
+
+# JSON output with summary
+pdfalchemy extract-images document.pdf \
+  --output ./json_output/ \
+  --format json \
+  --summary \
+  --pages 1-5
+
+# High-resolution extraction with custom filters
+pdfalchemy extract-images document.pdf \
+  --dpi 300 \
+  --output ./high_res_extracted/ \
+  --min-size 200x200 \
+  --max-size 1200x800 \
+  --aspect-ratio 0.8-1.5 \
+  --threshold 0.2 \
+  --no-noise-reduction
+```
+
+### Page Range Formats
+
+The `--pages` option supports multiple formats:
+- **Range**: `1-5` (pages 1 through 5)
+- **List**: `1,3,5` (pages 1, 3, and 5)
+- **Single**: `3` (page 3 only)
+
+### Output Formats
+
+#### PNG Format
+- Saves individual PNG files for each extracted image
+- File naming: `page_001_image_001.png`, `page_001_image_002.png`, etc.
+- Suitable for visual inspection and further processing
+
+#### JSON Format
+- Saves all extracted images as base64-encoded data in a JSON file
+- Includes metadata: page number, image index, size in bytes
+- Suitable for web applications and programmatic access
+
+### Sort Order Options
+
+The `--sort-order` parameter controls how extracted images are ordered:
+
+- **`top-bottom`** (default): Sort by y-coordinate first (top to bottom), then by x-coordinate (left to right)
+- **`left-right`**: Sort by x-coordinate first (left to right), then by y-coordinate (top to bottom)
+- **`reading-order`**: Group images by approximate rows and sort each row left-to-right, then sort rows top-to-bottom
+
+### Performance Tips
+
+1. **Use appropriate DPI**: Higher DPI provides better quality but increases processing time
+2. **Filter early**: Use size and aspect ratio filters to reduce processing overhead
+3. **Batch processing**: Process multiple files in scripts for automation
+4. **Memory management**: For large PDFs, consider processing page ranges
+
 ## Configuration
 
-### ExtractionConfig
-
-```python
-from pdfalchemy import ExtractionConfig
-
-config = ExtractionConfig(
-    extract_text=True,
-    extract_tables=True,
-    extract_images=True,
-    extract_metadata=True,
-    ocr_enabled=False,
-    ocr_language="eng",
-    ocr_confidence_threshold=0.8,
-    language="en",
-    preserve_formatting=True,
-    remove_headers_footers=False,
-    table_detection_method="auto",
-    max_pages=None,
-    parallel_processing=False
-)
-
-processor = PDFProcessor(config=config)
-```
+PDFAlchemy uses Pydantic models for configuration and validation. All input and output models include comprehensive validation and type checking.
 
 ## Data Models
 
@@ -219,6 +362,7 @@ processor = PDFProcessor(config=config)
 - `flood_fill_threshold`: Threshold for flood fill algorithm (0.0-1.0)
 - `noise_reduction`: Enable noise reduction
 - `separate_connected_regions`: Attempt to separate connected regions
+- `sort_order`: Sort order for extracted images ('top-bottom', 'left-right', 'reading-order')
 
 ### ImageExtractionOutput
 - `extracted_images`: List of base64 encoded extracted images
@@ -291,12 +435,12 @@ python sample_test_scripts/test_image_extraction.py
 - `Pillow>=9.0.0`: Image processing
 - `numpy>=1.21.0`: Numerical computing
 
-### Optional Dependencies
-- `PyPDF2>=3.0.0`: PDF manipulation
-- `pdfplumber>=0.9.0`: PDF text extraction
-- `pandas>=1.5.0`: Data analysis
-- `temporalio==1.13.0`: Temporal workflows
-- `google-cloud-storage==2.11.0`: Cloud storage integration
+### Development Dependencies
+- `pytest>=7.0.0`: Testing framework
+- `black>=23.0.0`: Code formatting
+- `isort>=5.12.0`: Import sorting
+- `flake8>=6.0.0`: Linting
+- `mypy>=1.0.0`: Type checking
 
 ## Contributing
 

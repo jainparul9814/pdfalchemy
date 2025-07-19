@@ -5,8 +5,6 @@ Test script for PDF to PNG conversion and image extraction.
 
 import sys
 import os
-import base64
-import time
 from pathlib import Path
 
 # Add the src directory to the path so we can import pdfalchemy
@@ -50,53 +48,71 @@ def test_pdf_to_png_and_extract_images(pdf_path: str):
         print(f"Converted {png_output.total_pages} page(s) to PNG")
         print(f"Total PNG size: {png_output.total_size_bytes} bytes")
         
-        # Step 3: Extract images from the first PNG
-        count = 0
+        # Step 3: Extract images from each PNG page
+        total_extracted = 0
+        total_filtered = 0
+        
         if png_output.png_images:
-            print("Step 3: Extracting images from PNG...")
+            print("Step 3: Extracting images from PNG pages...")
             
-            # Use the first PNG image
-            for png_bytes in png_output.png_images:
-            
-              extraction_input = ImageExtractionInput(
-                  png_bytes=png_bytes,
-                  min_width=50,    # Minimum 50px width
-                  min_height=50,   # Minimum 50px height
-                  flood_fill_threshold=0.2,  # 20% threshold
-                  noise_reduction=True,
-                  min_aspect_ratio=0.6,
-                  max_aspect_ratio=2.0,
-                  separate_connected_regions=True
-              )
-              
-              extraction_output = processor.extract_images_from_png(extraction_input)
-              
-              print(f"Extraction Results:")
-              print(f"  - Total images extracted: {extraction_output.total_images}")
-              print(f"  - Images filtered out: {extraction_output.filtered_count}")
-              print(f"  - Processing time: {extraction_output.processing_time_ms:.2f} ms")
-              print(f"  - Total extracted size: {extraction_output.total_size_bytes} bytes")
-              
-              # Save extracted images to files for inspection
-              if extraction_output.extracted_images:
-                  output_dir = Path("extracted_images")
-                  output_dir.mkdir(exist_ok=True)
-                  
-                  print(f"Saving extracted images to: {output_dir}")
-                  for i, img_base64 in enumerate(extraction_output.extracted_images):
-                      import base64
-                      img_bytes = base64.b64decode(img_base64)
-                      output_path = output_dir / f"extracted_image_{count}.png"
-                      count += 1
-                      
-                      with open(output_path, 'wb') as f:
-                          f.write(img_bytes)
-                      
-                      print(f"  - Saved: {output_path}")
-              else:
-                  print("  - No images were extracted")
+            # Process each page
+            for page_idx, png_bytes in enumerate(png_output.png_images):
+                page_num = page_idx + 1
+                print(f"\nProcessing page {page_num}...")
+                
+                extraction_input = ImageExtractionInput(
+                    png_bytes=png_bytes,
+                    min_width=50,    # Minimum 50px width
+                    min_height=50,   # Minimum 50px height
+                    flood_fill_threshold=0.2,  # 20% threshold
+                    noise_reduction=True,
+                    min_aspect_ratio=0.6,
+                    max_aspect_ratio=2.0,
+                    separate_connected_regions=True,
+                    sort_order="reading-order"  # Sort in reading order (top-bottom, left-right)
+                )
+                
+                extraction_output = processor.extract_images_from_png(extraction_input)
+                
+                print(f"Page {page_num} Results:")
+                print(f"  - Images extracted: {extraction_output.total_images}")
+                print(f"  - Images filtered out: {extraction_output.filtered_count}")
+                print(f"  - Processing time: {extraction_output.processing_time_ms:.2f} ms")
+                print(f"  - Extracted size: {extraction_output.total_size_bytes} bytes")
+                
+                total_extracted += extraction_output.total_images
+                total_filtered += extraction_output.filtered_count
+                
+                # Save extracted images to files for inspection
+                if extraction_output.extracted_images:
+                    output_dir = Path("extracted_images")
+                    output_dir.mkdir(exist_ok=True)
+                    
+                    print(f"  - Saving {len(extraction_output.extracted_images)} images from page {page_num}")
+                    for img_idx, img_base64 in enumerate(extraction_output.extracted_images):
+                        import base64
+                        img_bytes = base64.b64decode(img_base64)
+                        
+                        # Use page number and image index for proper ordering
+                        output_path = output_dir / f"page_{page_num:03d}_image_{img_idx+1:03d}.png"
+                        
+                        with open(output_path, 'wb') as f:
+                            f.write(img_bytes)
+                        
+                        print(f"    - Saved: {output_path}")
+                else:
+                    print(f"  - No images extracted from page {page_num}")
         else:
             print("No PNG images were generated")
+        
+        # Print summary
+        print(f"\n=== EXTRACTION SUMMARY ===")
+        print(f"Total pages processed: {png_output.total_pages}")
+        print(f"Total images extracted: {total_extracted}")
+        print(f"Total images filtered: {total_filtered}")
+        print(f"Output directory: extracted_images/")
+        if total_extracted > 0:
+            print(f"Files saved with format: page_XXX_image_YYY.png")
             
     except Exception as e:
         print(f"Error during processing: {e}")

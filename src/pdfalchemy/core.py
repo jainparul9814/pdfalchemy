@@ -13,8 +13,6 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from .config import ExtractionConfig
-
 class PNGConversionInput(BaseModel):
     """Input model for PDF to PNG conversion."""
     
@@ -77,6 +75,7 @@ class ImageExtractionInput(BaseModel):
     flood_fill_threshold: float = Field(default=0.1, ge=0.0, le=1.0, description="Threshold for flood fill algorithm")
     noise_reduction: bool = Field(default=True, description="Enable noise reduction")
     separate_connected_regions: bool = Field(default=True, description="Attempt to separate connected regions using morphological operations")
+    sort_order: str = Field(default="top-bottom", description="Sort order for extracted images: 'top-bottom' (default), 'left-right', 'reading-order'")
     
     @field_validator('png_bytes')
     @classmethod
@@ -112,6 +111,15 @@ class ImageExtractionInput(BaseModel):
             if v < info.data['min_aspect_ratio']:
                 raise ValueError("max_aspect_ratio must be greater than or equal to min_aspect_ratio")
         return v
+    
+    @field_validator('sort_order')
+    @classmethod
+    def validate_sort_order(cls, v):
+        """Validate sort order option."""
+        valid_orders = ['top-bottom', 'left-right', 'reading-order']
+        if v not in valid_orders:
+            raise ValueError(f"sort_order must be one of: {', '.join(valid_orders)}")
+        return v
 
 class ImageExtractionOutput(BaseModel):
     """Output model for image extraction from PNG."""
@@ -136,14 +144,11 @@ class PDFProcessor:
     Main class for processing individual PDF documents.
     """
     
-    def __init__(self, config: Optional[ExtractionConfig] = None):
+    def __init__(self):
         """
         Initialize PDF processor.
-        
-        Args:
-            config: Configuration for extraction settings
         """
-        self.config = config or ExtractionConfig()
+        pass
     
     def _validate_pdf_bytes(self, pdf_bytes: bytes):
         """Validate that the byte array contains valid PDF data."""
@@ -303,7 +308,8 @@ class PDFProcessor:
                 thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
             )
 
-            extracted_images = []
+            # Store all valid regions with their positions for ordering
+            valid_regions = []
             filtered_count = 0
 
             for cnt in contours:
@@ -405,13 +411,19 @@ class PDFProcessor:
                             # Extract sub-region
                             sub_roi = img[sub_y:sub_y+sub_h, sub_x:sub_x+sub_w]
                             
-                            # Encode sub-ROI
+                            # Store sub-region with position for ordering
                             is_success, buffer = cv2.imencode(".png", sub_roi)
                             if not is_success:
                                 continue
                             roi_bytes = buffer.tobytes()
                             img_base64 = base64.b64encode(roi_bytes).decode("utf-8")
-                            extracted_images.append(img_base64)
+                            valid_regions.append({
+                                'img_base64': img_base64,
+                                'x': sub_x,
+                                'y': sub_y,
+                                'w': sub_w,
+                                'h': sub_h
+                            })
                     else:
                         # If separation failed, fall back to original contour
                         roi = img[y:y+h, x:x+w]
@@ -420,7 +432,13 @@ class PDFProcessor:
                             continue
                         roi_bytes = buffer.tobytes()
                         img_base64 = base64.b64encode(roi_bytes).decode("utf-8")
-                        extracted_images.append(img_base64)
+                        valid_regions.append({
+                            'img_base64': img_base64,
+                            'x': x,
+                            'y': y,
+                            'w': w,
+                            'h': h
+                        })
                 else:
                     # Extract region of interest (ROI) for single connected region
                     roi = img[y:y+h, x:x+w]
@@ -431,8 +449,46 @@ class PDFProcessor:
                         continue
                     roi_bytes = buffer.tobytes()
                     img_base64 = base64.b64encode(roi_bytes).decode("utf-8")
-                    extracted_images.append(img_base64)
+                    valid_regions.append({
+                        'img_base64': img_base64,
+                        'x': x,
+                        'y': y,
+                        'w': w,
+                        'h': h
+                    })
 
+            # Sort regions by position based on sort_order
+            if input_data.sort_order == "top-bottom":
+                # Sort by y-coordinate first (top to bottom), then by x-coordinate (left to right)
+                valid_regions.sort(key=lambda region: (region['y'], region['x']))
+            elif input_data.sort_order == "left-right":
+                # Sort by x-coordinate first (left to right), then by y-coordinate (top to bottom)
+                valid_regions.sort(key=lambda region: (region['x'], region['y']))
+            elif input_data.sort_order == "reading-order":
+                # Sort by reading order: top-to-bottom, left-to-right, but with row detection
+                # Group regions by approximate row (within 20% of image height)
+                img_height = img.shape[0]
+                row_threshold = img_height * 0.2
+                
+                # Group regions by row
+                rows = {}
+                for region in valid_regions:
+                    row_key = int(region['y'] / row_threshold)
+                    if row_key not in rows:
+                        rows[row_key] = []
+                    rows[row_key].append(region)
+                
+                # Sort each row by x-coordinate, then sort rows by y-coordinate
+                sorted_regions = []
+                for row_key in sorted(rows.keys()):
+                    rows[row_key].sort(key=lambda region: region['x'])
+                    sorted_regions.extend(rows[row_key])
+                
+                valid_regions = sorted_regions
+            
+            # Extract the sorted images
+            extracted_images = [region['img_base64'] for region in valid_regions]
+            
             processing_time = (time.time() - start_time) * 1000
             return ImageExtractionOutput(
                 extracted_images=extracted_images,

@@ -14,7 +14,6 @@ from pdfalchemy.core import (
     ImageExtractionInput, ImageExtractionOutput,
     PDFProcessor
 )
-from pdfalchemy.config import ExtractionConfig
 
 
 class TestPNGConversionInput:
@@ -244,6 +243,20 @@ class TestImageExtractionInput:
         with pytest.raises(ValueError):
             ImageExtractionInput(png_bytes=png_bytes, flood_fill_threshold=1.5)
     
+    def test_sort_order_validation(self):
+        """Test sort order validation."""
+        png_bytes = self._create_mock_png(800, 600)
+        
+        # Test valid sort orders
+        valid_orders = ["top-bottom", "left-right", "reading-order"]
+        for order in valid_orders:
+            input_data = ImageExtractionInput(png_bytes=png_bytes, sort_order=order)
+            assert input_data.sort_order == order
+        
+        # Test invalid sort order
+        with pytest.raises(ValueError):
+            ImageExtractionInput(png_bytes=png_bytes, sort_order="invalid-order")
+    
     def _create_mock_png(self, width, height):
         """Helper method to create mock PNG data."""
         img = Image.new('RGB', (width, height), color='white')
@@ -292,16 +305,10 @@ class TestImageExtractionOutput:
 class TestPDFProcessor:
     """Test cases for PDFProcessor class."""
     
-    def test_init_with_config(self):
-        """Test PDFProcessor initialization with config."""
-        config = ExtractionConfig()
-        processor = PDFProcessor(config)
-        assert processor.config == config
-    
-    def test_init_without_config(self):
-        """Test PDFProcessor initialization without config."""
+    def test_init(self):
+        """Test PDFProcessor initialization."""
         processor = PDFProcessor()
-        assert isinstance(processor.config, ExtractionConfig)
+        assert processor is not None
     
     def test_validate_pdf_bytes(self):
         """Test PDF bytes validation."""

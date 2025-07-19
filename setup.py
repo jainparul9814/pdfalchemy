@@ -14,19 +14,10 @@ setup(
     package_dir={'': 'src'},
     install_requires=[
         'pydantic>=2.0.0',
-        'PyPDF2>=3.0.0',
-        'pdfplumber>=0.9.0',
-        'pandas>=1.5.0',
-        'numpy>=1.21.0',
         'pdf2image>=1.16.0',
         'Pillow>=9.0.0',
-        'python-dateutil>=2.8.0',
-        'python-dotenv>=1.0.0',
-        'structlog>=23.0.0',
-        'temporalio==1.13.0',
-        'google-cloud-storage==2.11.0',
-        'opencv-python>=4.8.0',
         'numpy>=1.21.0',
+        'opencv-python>=4.8.0',
     ],
     extras_require={
         'dev': [
