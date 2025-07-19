@@ -1,0 +1,29 @@
+# Core dependencies
+pydantic>=2.0.0
+PyPDF2>=3.0.0
+pdfplumber>=0.9.0
+pandas>=1.5.0
+numpy>=1.21.0
+pdf2image>=1.16.0
+Pillow>=9.0.0
+
+# Testing dependencies
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+
+# Utility dependencies
+python-dateutil>=2.8.0
+python-dotenv>=1.0.0
+structlog>=23.0.0
+
+# Cloud and temporal dependencies
+temporalio==1.13.0
+google-cloud-storage==2.11.0
+
+# Development dependencies (optional)
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.0.0
+pre-commit>=3.0.0 
