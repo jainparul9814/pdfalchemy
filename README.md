@@ -426,6 +426,24 @@ Check the `sample_test_scripts/` directory for working examples:
 python sample_test_scripts/test_image_extraction.py
 ```
 
+### Building and Publishing
+
+```bash
+# Clean previous builds
+rm -rf dist/ build/ *.egg-info
+
+# Build the package
+python -m build
+
+# Upload to PyPI
+python -m twine upload dist/*
+```
+
+**Note**: Make sure you have the required build tools installed:
+```bash
+pip install build twine
+```
+
 ## Dependencies
 
 ### Core Dependencies
